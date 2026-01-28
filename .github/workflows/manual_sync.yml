@@ -1,0 +1,67 @@
+name: 手动同步组织仓库列表
+
+on:
+  workflow_dispatch: # 手动触发
+
+jobs:
+  sync-projects:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 获取并格式化仓库数据
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 自动获取当前组织/所有者的名称
+          ORG_NAME: ${{ github.repository_owner }} 
+        run: |
+          # 1. 使用环境变量 $ORG_NAME 获取仓库列表
+          REPOS_JSON=$(gh repo list $ORG_NAME --public --json name,url,description,homepage --limit 100)
+          
+          # 2. 使用 Node.js 处理数据
+          echo "const repos = $REPOS_JSON;" > temp_repos.js
+          node -e "
+            const fs = require('fs');
+            const repos = require('./temp_repos.js');
+            const owner = process.env.ORG_NAME;
+
+            const projects = repos
+              .filter(r => r.name !== '.github' && r.name !== owner)
+              .map(r => {
+                const links = [];
+                if (r.homepage) {
+                  links.push({ 
+                    url: r.homepage, 
+                    display: r.homepage.replace(/^https?:\/\//, '').replace(/\/$/, '') 
+                  });
+                }
+                links.push({ 
+                  url: r.url, 
+                  display: r.url.replace('https://github.com/', '') 
+                });
+                
+                return {
+                  title: r.name,
+                  links: links,
+                  description: r.description || '暂无项目描述'
+                };
+              });
+
+            let configContent = fs.readFileSync('config.js', 'utf8');
+            const projectsString = JSON.stringify(projects, null, 2);
+            configContent = configContent.replace(/projects: \[\s*[\s\S]*?\s*\]/, 'projects: ' + projectsString);
+            
+            fs.writeFileSync('config.js', configContent);
+          "
+
+      - name: 提交并推送
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add config.js
+          git commit -m "auto: 同步 ${{ github.repository_owner }} 的项目列表" || exit 0
+          git push
