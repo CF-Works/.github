@@ -13,48 +13,59 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      
-      - name: 获取并格式化仓库数据
+        - name: 获取并格式化仓库数据
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORG_NAME: ${{ github.repository_owner }} 
         run: |
-          # 1. 使用修正后的参数获取数据 (homepageUrl)
-          REPOS_JSON=$(gh repo list $ORG_NAME --visibility=public --json name,url,description,homepageUrl --limit 100)
+          # 1. 直接将结果存入环境变量，避免文件读写引起的格式问题
+          export REPOS_JSON=$(gh repo list $ORG_NAME --visibility=public --json name,url,description,homepageUrl --limit 100)
           
-          # 2. 处理数据
-          echo "const repos = $REPOS_JSON;" > temp_repos.js
+          # 2. 使用 Node.js 处理
           node -e "
-            const fs = require('fs');
-            const repos = require('./temp_repos.js');
-            const owner = process.env.ORG_NAME;
+            try {
+              const fs = require('fs');
+              // 从环境变量读取并解析 JSON
+              const repos = JSON.parse(process.env.REPOS_JSON);
+              const owner = process.env.ORG_NAME;
 
-            const projects = repos
-              .filter(r => r.name !== '.github' && r.name !== owner)
-              .map(r => {
-                const links = [];
-                // 修正字段为 homepageUrl
-                if (r.homepageUrl) {
+              if (!Array.isArray(repos)) {
+                console.error('获取到的数据不是数组:', repos);
+                process.exit(1);
+              }
+
+              const projects = repos
+                .filter(r => r.name !== '.github' && r.name !== owner)
+                .map(r => {
+                  const links = [];
+                  if (r.homepageUrl) {
+                    links.push({ 
+                      url: r.homepageUrl, 
+                      display: r.homepageUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') 
+                    });
+                  }
                   links.push({ 
-                    url: r.homepageUrl, 
-                    display: r.homepageUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') 
+                    url: r.url, 
+                    display: r.url.replace('https://github.com/', '') 
                   });
-                }
-                links.push({ 
-                  url: r.url, 
-                  display: r.url.replace('https://github.com/', '') 
+                  
+                  return {
+                    title: r.name,
+                    links: links,
+                    description: r.description || '暂无项目描述'
+                  };
                 });
-                
-                return {
-                  title: r.name,
-                  links: links,
-                  description: r.description || '暂无项目描述'
-                };
-              });
 
-            let configContent = fs.readFileSync('config.js', 'utf8');
-            const projectsString = JSON.stringify(projects, null, 2);
-            configContent = configContent.replace(/projects: \[\s*[\s\S]*?\s*\]/, 'projects: ' + projectsString);
-            
-            fs.writeFileSync('config.js', configContent);
+              let configContent = fs.readFileSync('config.js', 'utf8');
+              const projectsString = JSON.stringify(projects, null, 2);
+              
+              // 更加健壮的替换逻辑
+              configContent = configContent.replace(/projects: \[\s*[\s\S]*?\s*\]/, 'projects: ' + projectsString);
+              
+              fs.writeFileSync('config.js', configContent);
+              console.log('成功处理了 ' + projects.length + ' 个项目');
+            } catch (e) {
+              console.error('处理失败:', e.message);
+              process.exit(1);
+            }
           "
