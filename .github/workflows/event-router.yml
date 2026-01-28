@@ -1,0 +1,17 @@
+name: 组织事件路由
+
+on:
+  repository:
+    types: [created, deleted, edited, privatized, public_to_private]
+
+jobs:
+  ping-main-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 触发主仓库同步
+        run: |
+          # 注意：请将 {你的主仓库名} 替换为实际名称
+          curl -X POST https://api.github.com/repos/${{ github.repository_owner }}/cf-works.github.io/dispatches \
+          -H "Authorization: Bearer ${{ secrets.MY_SYNC_PAT }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"event_type": "org_update"}'
