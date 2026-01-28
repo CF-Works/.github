@@ -13,16 +13,16 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
+      
       - name: 获取并格式化仓库数据
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 自动获取当前组织/所有者的名称
           ORG_NAME: ${{ github.repository_owner }} 
         run: |
-          # 1. 使用环境变量 $ORG_NAME 获取仓库列表
-          REPOS_JSON=$(gh repo list $ORG_NAME --public --json name,url,description,homepage --limit 100)
+          # 1. 使用修正后的参数获取数据 (homepageUrl)
+          REPOS_JSON=$(gh repo list $ORG_NAME --visibility=public --json name,url,description,homepageUrl --limit 100)
           
-          # 2. 使用 Node.js 处理数据
+          # 2. 处理数据
           echo "const repos = $REPOS_JSON;" > temp_repos.js
           node -e "
             const fs = require('fs');
@@ -33,10 +33,11 @@ jobs:
               .filter(r => r.name !== '.github' && r.name !== owner)
               .map(r => {
                 const links = [];
-                if (r.homepage) {
+                // 修正字段为 homepageUrl
+                if (r.homepageUrl) {
                   links.push({ 
-                    url: r.homepage, 
-                    display: r.homepage.replace(/^https?:\/\//, '').replace(/\/$/, '') 
+                    url: r.homepageUrl, 
+                    display: r.homepageUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') 
                   });
                 }
                 links.push({ 
@@ -57,11 +58,3 @@ jobs:
             
             fs.writeFileSync('config.js', configContent);
           "
-
-      - name: 提交并推送
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add config.js
-          git commit -m "auto: 同步 ${{ github.repository_owner }} 的项目列表" || exit 0
-          git push
