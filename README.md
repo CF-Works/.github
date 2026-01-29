@@ -1,4 +1,5 @@
 1. Cloudflare Worker 代码 (index.js)
+```
 async function verifySignature(secret, header, body) {
   if (!header || !secret) return false;
   const encoder = new TextEncoder();
@@ -50,8 +51,8 @@ export default {
     }
   }
 };
+```
 
-2. README.md
 # GitHub Webhook Gateway (Cloudflare Worker)
 
 此 Worker 用于接收 GitHub Organization Webhook，并通过 `repository_dispatch` 安全地触发特定仓库的 Action。
@@ -64,7 +65,7 @@ export default {
 on:
   repository_dispatch:
     types: [org-webhook]
-
+```
 2. Cloudflare Worker 设置
 部署代码后，在 Worker 的 Settings -> Variables 中添加以下变量：
 | 变量名 | 示例值 | 说明 |
