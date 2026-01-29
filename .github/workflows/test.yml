@@ -1,18 +1,16 @@
-name: 信号响应测试
+name: 组织仓库同步测试
 
 on:
-  # 接收来自 Worker 的 repository_dispatch 信号
   repository_dispatch:
     types: [org-webhook]
-  # 支持手动在网页点一下，用于对比测试
-  workflow_dispatch:
 
 jobs:
-  ping-test:
+  debug-info:
     runs-on: ubuntu-latest
     steps:
-      - name: 报告状态
+      - name: 解析 Webhook 信号
         run: |
-          echo "🚀 成功接收到来自 Worker 的暗号！"
-          echo "触发事件类型: ${{ github.event.action }}"
+          echo "检测到组织变动！"
+          echo "动作类型: ${{ github.event.client_payload.action }}"
+          echo "目标分支: ${{ github.event.client_payload.ref }}"
           echo "触发时间: $(date)"
