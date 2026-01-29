@@ -3,9 +3,9 @@ name: 组织事件路由
 on:
   workflow_dispatch: # 支持手动点击运行
   # 监听组织中任何仓库的公开化、创建等动作
-  public: 
-  push:
-    branches: [main, master]
+  #public: 
+  #push:
+    #branches: [main, master]
 jobs:
   ping-main-repo:
     runs-on: ubuntu-latest
