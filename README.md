@@ -53,13 +53,12 @@ export default {
 };
 ```
 
-# GitHub Webhook Gateway (Cloudflare Worker)
 
-此 Worker 用于接收 GitHub Organization Webhook，并通过 `repository_dispatch` 安全地触发特定仓库的 Action。
+> 此Worker 用于接收 GitHub Organization Webhook，并通过 `repository_dispatch` 安全地触发特定仓库的 Action。
 
 ## 🚀 部署步骤
 
-### 1. GitHub 仓库配置
+1. GitHub 仓库配置
 在目标仓库（例如 `cf-works.github.io`）的 `.github/workflows/sync.yml` 中添加触发器：
 ```yaml
 on:
@@ -68,12 +67,14 @@ on:
 ```
 2. Cloudflare Worker 设置
 部署代码后，在 Worker 的 Settings -> Variables 中添加以下变量：
+
 | 变量名 | 示例值 | 说明 |
 |---|---|---|
 | GITHUB_TOKEN | ghp_xxxx | 具有 repo 权限的 Personal Access Token |
 | GITHUB_TARGET | CF-Works/cf-works.github.io@main | 格式：用户名/仓库名@分支 |
 | WEBHOOK_SECRET | your_secret_key | 在 GitHub Webhook 页面设置的 Secret |
 | GITHUB_EVENT_TYPE | org-webhook | 对应的 Action types 暗号 |
+
 3. GitHub Webhook 配置
 前往组织设置 (Organization Settings) -> Webhooks -> Add webhook：
  * Payload URL: Worker 的访问链接
