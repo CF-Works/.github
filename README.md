@@ -1,4 +1,4 @@
-1. Cloudflare Worker 代码 (index.js)
+### Cloudflare Worker 代码 (index.js)
 ```
 async function verifySignature(secret, header, body) {
   if (!header || !secret) return false;
