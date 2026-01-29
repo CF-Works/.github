@@ -85,3 +85,4 @@ on:
 本 Worker 强制执行 HMAC-SHA256 签名验证。只有携带正确 Secret 签名的 GitHub 请求才会被转发至 API，有效防止非法调用。
 
 ---
+好像不支持组织的`.github`仓库
