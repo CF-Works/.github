@@ -1,5 +1,8 @@
 ### Cloudflare Worker 代码
 ```
+/**
+ * 验证 GitHub Webhook 签名
+ */
 async function verifySignature(secret, header, body) {
   if (!header || !secret) return false;
   const encoder = new TextEncoder();
@@ -15,42 +18,66 @@ async function verifySignature(secret, header, body) {
 
 export default {
   async fetch(request, env) {
-    if (request.method !== 'POST') return new Response('POST only', { status: 405 });
+    // 仅允许 POST 请求
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
 
     const bodyText = await request.text();
     const signature = request.headers.get('x-hub-signature-256');
+    const githubEvent = request.headers.get('x-github-event');
 
-    // 1. 安全校验：验证 GitHub Webhook Secret
+    // 1. 安全校验：防止非法调用
     if (!await verifySignature(env.WEBHOOK_SECRET, signature, bodyText)) {
-      return new Response('🚫 Unauthorized: Invalid Secret', { status: 401 });
+      return new Response('🚫 Invalid Webhook Secret', { status: 401 });
     }
 
-    // 2. 解析配置：owner/repo@branch
+    // 2. 过滤 Ping 事件：GitHub 激活 Webhook 时的测试请求
+    if (githubEvent === 'ping') {
+      return new Response('✅ Pong! Webhook is active.', { status: 200 });
+    }
+
+    // 3. 解析配置变量
+    // 格式要求: GITHUB_TARGET 为 "owner/repo@branch"
     const [repoPath, branch] = (env.GITHUB_TARGET || "").split('@');
     const token = env.GITHUB_TOKEN;
     const eventType = env.GITHUB_EVENT_TYPE || 'org-webhook';
 
+    if (!token || !repoPath) {
+      return new Response('❌ Worker environment variables not configured', { status: 500 });
+    }
+
     try {
+      // 4. 调用 GitHub Dispatch API 触发 Action
       const response = await fetch(`https://api.github.com/repos/${repoPath}/dispatches`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
-          'User-Agent': 'CF-Worker-Secure'
+          'User-Agent': 'CF-Worker-Final-Secure'
         },
         body: JSON.stringify({ 
           event_type: eventType,
-          client_payload: { ref: branch || 'main' }
+          client_payload: { 
+            ref: branch || 'main',
+            source_event: githubEvent // 传递原始事件类型给 Action 调试
+          }
         })
       });
 
-      return new Response(response.status === 204 ? '🚀 Signal Sent' : `❌ API Error: ${response.status}`, { status: 200 });
+      if (response.status === 204) {
+        return new Response(`🚀 Success: Triggered ${repoPath}`, { status: 200 });
+      } else {
+        const errorMsg = await response.text();
+        return new Response(`❌ GitHub API Error: ${response.status} - ${errorMsg}`, { status: response.status });
+      }
     } catch (e) {
-      return new Response(`Worker Error: ${e.message}`, { status: 500 });
+      return new Response(`Internal Error: ${e.message}`, { status: 500 });
     }
   }
 };
+
 ```
 
 
