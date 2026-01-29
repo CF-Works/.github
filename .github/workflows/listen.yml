@@ -1,6 +1,7 @@
 name: 🌐 CF-Works 组织事件中枢
 
 on:
+  workflow_dispatch: # 支持手动点击运行
   repository_dispatch:
     types: [org-webhook]  # 必须与 Worker 中 event_type 严格一致！
 
