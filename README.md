@@ -107,7 +107,8 @@ on:
  * Payload URL: Worker 的访问链接
  * Content type: application/json
  * Secret: 填写上面设置的 WEBHOOK_SECRET
- * Events: 选择 Repositories 和 Push
+ * Events: 选择 Repositories 和 Push（重点）
+
 🛡️ 安全说明
 本 Worker 强制执行 HMAC-SHA256 签名验证。只有携带正确 Secret 签名的 GitHub 请求才会被转发至 API，有效防止非法调用。
 
